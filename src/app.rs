@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Instant;
 
+use crate::delete;
 use crate::scanner::types::{FileNode, ScanMessage, ScanProgress};
 use crate::scanner::walker;
 use crate::ui::{sidebar, status_bar, toolbar};
@@ -39,6 +40,18 @@ pub struct WinFolSizeApp {
     drill_depths: Vec<usize>, // how many indices each drill-down step pushed
     breadcrumb: Vec<String>,
     show_about: bool,
+    // Context menu for right-click delete
+    context_menu: Option<ContextMenuItem>,
+    delete_error: Option<String>,
+}
+
+#[derive(Clone)]
+struct ContextMenuItem {
+    name: String,
+    path: PathBuf,
+    node_index: Vec<usize>,
+    is_dir: bool,
+    size: u64,
 }
 
 impl WinFolSizeApp {
@@ -64,6 +77,8 @@ impl WinFolSizeApp {
             drill_depths: Vec::new(),
             breadcrumb: Vec::new(),
             show_about: false,
+            context_menu: None,
+            delete_error: None,
         }
     }
 
@@ -101,6 +116,55 @@ impl WinFolSizeApp {
             }
         }
         Some(node.path.to_string_lossy().to_string())
+    }
+
+    /// Resolve a node_index (relative to current view) to its PathBuf.
+    fn resolve_pathbuf(&self, node_index: &[usize]) -> Option<PathBuf> {
+        let root = self.scan_root.as_ref()?;
+        let mut node = root;
+        for &idx in &self.drill_path {
+            if idx < node.children.len() {
+                node = &node.children[idx];
+            } else {
+                return None;
+            }
+        }
+        for &idx in node_index {
+            if idx < node.children.len() {
+                node = &node.children[idx];
+            } else {
+                return None;
+            }
+        }
+        Some(node.path.clone())
+    }
+
+    /// Remove a node from the scan tree by its full index path (drill_path + node_index)
+    /// and recalculate sizes.
+    fn remove_node(&mut self, node_index: &[usize]) {
+        let Some(root) = self.scan_root.as_mut() else { return };
+        // Build full path: drill_path + node_index
+        let full_path: Vec<usize> = self.drill_path.iter().chain(node_index.iter()).copied().collect();
+        if full_path.is_empty() {
+            return;
+        }
+        // Navigate to the parent
+        let parent_indices = &full_path[..full_path.len() - 1];
+        let child_idx = full_path[full_path.len() - 1];
+        let mut node = &mut *root;
+        for &idx in parent_indices {
+            if idx < node.children.len() {
+                node = &mut node.children[idx];
+            } else {
+                return;
+            }
+        }
+        if child_idx < node.children.len() {
+            node.children.remove(child_idx);
+        }
+        // Recalculate sizes from root
+        root.recalculate_sizes();
+        self.invalidate_layout();
     }
 
     fn start_scanning(&mut self) {
@@ -213,7 +277,76 @@ impl eframe::App for WinFolSizeApp {
                 });
         }
 
-        // Bottom status bar
+        // Context menu for right-click delete
+        let mut delete_action: Option<(Vec<usize>, PathBuf, bool)> = None;
+        if let Some(ref item) = self.context_menu {
+            let mut open = true;
+            egui::Window::new("context_menu")
+                .title_bar(false)
+                .collapsible(false)
+                .resizable(false)
+                .fixed_size([220.0, 0.0])
+                .anchor(egui::Align2::LEFT_TOP, [0.0, 0.0])
+                .current_pos(ctx.input(|i| i.pointer.latest_pos().unwrap_or_default()))
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.label(egui::RichText::new(&item.name).strong());
+                    ui.label(egui::RichText::new(format_size(item.size)).weak().size(11.0));
+                    ui.separator();
+                    if ui.button("🗑 Move to Recycle Bin").clicked() {
+                        delete_action = Some((item.node_index.clone(), item.path.clone(), false));
+                    }
+                    if ui.button("❌ Delete permanently").clicked() {
+                        delete_action = Some((item.node_index.clone(), item.path.clone(), true));
+                    }
+                });
+            if !open {
+                self.context_menu = None;
+            }
+        }
+        // Handle delete action outside the borrow
+        if let Some((node_index, path, permanent)) = delete_action {
+            let result = if permanent {
+                delete::permanent_delete(&path)
+            } else {
+                delete::recycle(&path)
+            };
+            match result {
+                Ok(()) => {
+                    self.remove_node(&node_index);
+                    self.delete_error = None;
+                }
+                Err(e) => {
+                    self.delete_error = Some(e);
+                }
+            }
+            self.context_menu = None;
+        }
+        // Close context menu on any click outside it
+        if self.context_menu.is_some()
+            && ctx.input(|i| i.pointer.primary_clicked())
+        {
+            self.context_menu = None;
+        }
+
+        // Show delete error briefly
+        if self.delete_error.is_some() {
+            let err_text = self.delete_error.clone().unwrap();
+            let mut dismiss = false;
+            egui::Window::new("Delete Error")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.colored_label(egui::Color32::RED, &err_text);
+                    if ui.button("OK").clicked() {
+                        dismiss = true;
+                    }
+                });
+            if dismiss {
+                self.delete_error = None;
+            }
+        }
         if self.scan_root.is_some() {
             egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
                 if let Some(ref root) = self.scan_root {
@@ -345,6 +478,19 @@ impl eframe::App for WinFolSizeApp {
                                 self.invalidate_layout();
                             }
                         }
+
+                        // Right-click to open context menu
+                        if ui.input(|i| i.pointer.secondary_clicked()) {
+                            if let Some(path) = self.resolve_pathbuf(&tr.node_index) {
+                                self.context_menu = Some(ContextMenuItem {
+                                    name: tr.name.clone(),
+                                    path,
+                                    node_index: tr.node_index.clone(),
+                                    is_dir: tr.is_dir,
+                                    size: tr.size,
+                                });
+                            }
+                        }
                     }
                 }
                 ViewMode::Sunburst => {
@@ -398,6 +544,19 @@ impl eframe::App for WinFolSizeApp {
                                 self.drill_path.extend_from_slice(&arc.node_index);
                                 self.breadcrumb.push(arc.name.clone());
                                 self.invalidate_layout();
+                            }
+                        }
+
+                        // Right-click to open context menu
+                        if ui.input(|i| i.pointer.secondary_clicked()) {
+                            if let Some(path) = self.resolve_pathbuf(&arc.node_index) {
+                                self.context_menu = Some(ContextMenuItem {
+                                    name: arc.name.clone(),
+                                    path,
+                                    node_index: arc.node_index.clone(),
+                                    is_dir: arc.is_dir,
+                                    size: arc.size,
+                                });
                             }
                         }
                     }
