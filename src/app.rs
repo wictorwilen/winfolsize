@@ -43,7 +43,7 @@ impl WinFolSizeApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self {
             state: AppState {
-                selected_path: None,
+                selected_path: Some(std::path::PathBuf::from("C:\\")),
                 view_mode: ViewMode::Treemap,
                 is_scanning: false,
                 start_scan: false,

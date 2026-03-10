@@ -79,156 +79,154 @@ fn layout_strip(
     depth: usize,
     result: &mut Vec<TreemapRect>,
 ) {
-    if items.is_empty() || bounds.width() < 1.0 || bounds.height() < 1.0 {
-        return;
-    }
+    let mut remaining = items;
+    let mut current_bounds = bounds;
 
-    if items.len() == 1 {
-        let (idx, _) = items[0];
-        let child = &children[idx];
-        let mut path = parent_path.to_vec();
-        path.push(idx);
+    while !remaining.is_empty() && current_bounds.width() >= 1.0 && current_bounds.height() >= 1.0 {
+        if remaining.len() == 1 {
+            let (idx, _) = remaining[0];
+            let child = &children[idx];
+            let mut path = parent_path.to_vec();
+            path.push(idx);
 
-        let color = if child.is_dir {
-            dir_color(child)
-        } else {
-            colors::color_for_extension(child.extension.as_deref())
-        };
+            let color = if child.is_dir {
+                dir_color(child)
+            } else {
+                colors::color_for_extension(child.extension.as_deref())
+            };
 
-        result.push(TreemapRect {
-            rect: bounds,
-            node_index: path.clone(),
-            name: child.name.clone(),
-            size: child.size,
-            is_dir: child.is_dir,
-            extension: child.extension.clone(),
-            color,
-            depth,
-        });
+            result.push(TreemapRect {
+                rect: current_bounds,
+                node_index: path.clone(),
+                name: child.name.clone(),
+                size: child.size,
+                is_dir: child.is_dir,
+                extension: child.extension.clone(),
+                color,
+                depth,
+            });
 
-        // Recurse into directory children
-        if child.is_dir && !child.children.is_empty() {
-            let inner = bounds.shrink(DIR_PADDING);
-            if inner.width() > 4.0 && inner.height() > 4.0 {
-                layout_recursive(&child.children, inner, &path, depth + 1, result);
-            }
-        }
-        return;
-    }
-
-    let total_area: f64 = items.iter().map(|(_, a)| a).sum();
-    let is_wide = bounds.width() >= bounds.height();
-    let side = if is_wide {
-        bounds.height() as f64
-    } else {
-        bounds.width() as f64
-    };
-
-    // Find best split using squarified algorithm
-    let mut best_split = 1;
-    let mut best_worst_ratio = f64::MAX;
-
-    for split in 1..=items.len() {
-        let strip_area: f64 = items[..split].iter().map(|(_, a)| a).sum();
-        let strip_side = strip_area / side;
-        if strip_side <= 0.0 {
-            continue;
-        }
-
-        let worst_ratio = items[..split]
-            .iter()
-            .map(|(_, a)| {
-                let other_side = a / strip_side;
-                if other_side > strip_side {
-                    other_side / strip_side
-                } else {
-                    strip_side / other_side
+            if child.is_dir && !child.children.is_empty() {
+                let inner = current_bounds.shrink(DIR_PADDING);
+                if inner.width() > 4.0 && inner.height() > 4.0 {
+                    layout_recursive(&child.children, inner, &path, depth + 1, result);
                 }
-            })
-            .fold(0.0_f64, f64::max);
-
-        if worst_ratio <= best_worst_ratio {
-            best_worst_ratio = worst_ratio;
-            best_split = split;
-        } else {
-            break;
+            }
+            return;
         }
-    }
 
-    let strip_items = &items[..best_split];
-    let rest_items = &items[best_split..];
-    let strip_area: f64 = strip_items.iter().map(|(_, a)| a).sum();
-    let strip_fraction = strip_area / total_area;
-
-    let (strip_bounds, rest_bounds) = if is_wide {
-        let split_x = bounds.left() + bounds.width() * strip_fraction as f32;
-        (
-            Rect::from_min_max(bounds.left_top(), Pos2::new(split_x, bounds.bottom())),
-            Rect::from_min_max(Pos2::new(split_x, bounds.top()), bounds.right_bottom()),
-        )
-    } else {
-        let split_y = bounds.top() + bounds.height() * strip_fraction as f32;
-        (
-            Rect::from_min_max(bounds.left_top(), Pos2::new(bounds.right(), split_y)),
-            Rect::from_min_max(Pos2::new(bounds.left(), split_y), bounds.right_bottom()),
-        )
-    };
-
-    // Place items in the strip
-    let mut offset = 0.0_f32;
-    for &(idx, item_area) in strip_items {
-        let fraction = item_area / strip_area;
-        let child = &children[idx];
-        let mut path = parent_path.to_vec();
-        path.push(idx);
-
-        let item_rect = if is_wide {
-            let h = strip_bounds.height() * fraction as f32;
-            let r = Rect::from_min_size(
-                Pos2::new(strip_bounds.left(), strip_bounds.top() + offset),
-                Vec2::new(strip_bounds.width(), h),
-            );
-            offset += h;
-            r
+        let total_area: f64 = remaining.iter().map(|(_, a)| a).sum();
+        let is_wide = current_bounds.width() >= current_bounds.height();
+        let side = if is_wide {
+            current_bounds.height() as f64
         } else {
-            let w = strip_bounds.width() * fraction as f32;
-            let r = Rect::from_min_size(
-                Pos2::new(strip_bounds.left() + offset, strip_bounds.top()),
-                Vec2::new(w, strip_bounds.height()),
-            );
-            offset += w;
-            r
+            current_bounds.width() as f64
         };
 
-        let color = if child.is_dir {
-            dir_color(child)
-        } else {
-            colors::color_for_extension(child.extension.as_deref())
-        };
+        // Find best split
+        let mut best_split = 1;
+        let mut best_worst_ratio = f64::MAX;
 
-        result.push(TreemapRect {
-            rect: item_rect,
-            node_index: path.clone(),
-            name: child.name.clone(),
-            size: child.size,
-            is_dir: child.is_dir,
-            extension: child.extension.clone(),
-            color,
-            depth,
-        });
+        for split in 1..=remaining.len() {
+            let strip_area: f64 = remaining[..split].iter().map(|(_, a)| a).sum();
+            let strip_side = strip_area / side;
+            if strip_side <= 0.0 {
+                continue;
+            }
 
-        // Recurse into directory children
-        if child.is_dir && !child.children.is_empty() {
-            let inner = item_rect.shrink(DIR_PADDING);
-            if inner.width() > 4.0 && inner.height() > 4.0 {
-                layout_recursive(&child.children, inner, &path, depth + 1, result);
+            let worst_ratio = remaining[..split]
+                .iter()
+                .map(|(_, a)| {
+                    let other_side = a / strip_side;
+                    if other_side > strip_side {
+                        other_side / strip_side
+                    } else {
+                        strip_side / other_side
+                    }
+                })
+                .fold(0.0_f64, f64::max);
+
+            if worst_ratio <= best_worst_ratio {
+                best_worst_ratio = worst_ratio;
+                best_split = split;
+            } else {
+                break;
             }
         }
-    }
 
-    // Recurse for remaining items
-    if !rest_items.is_empty() && rest_bounds.width() >= 1.0 && rest_bounds.height() >= 1.0 {
-        layout_strip(rest_items, children, rest_bounds, parent_path, depth, result);
+        let strip_items = &remaining[..best_split];
+        let rest_items = &remaining[best_split..];
+        let strip_area: f64 = strip_items.iter().map(|(_, a)| a).sum();
+        let strip_fraction = strip_area / total_area;
+
+        let (strip_bounds, rest_bounds) = if is_wide {
+            let split_x = current_bounds.left() + current_bounds.width() * strip_fraction as f32;
+            (
+                Rect::from_min_max(current_bounds.left_top(), Pos2::new(split_x, current_bounds.bottom())),
+                Rect::from_min_max(Pos2::new(split_x, current_bounds.top()), current_bounds.right_bottom()),
+            )
+        } else {
+            let split_y = current_bounds.top() + current_bounds.height() * strip_fraction as f32;
+            (
+                Rect::from_min_max(current_bounds.left_top(), Pos2::new(current_bounds.right(), split_y)),
+                Rect::from_min_max(Pos2::new(current_bounds.left(), split_y), current_bounds.right_bottom()),
+            )
+        };
+
+        // Place items in the strip
+        let mut offset = 0.0_f32;
+        for &(idx, item_area) in strip_items {
+            let fraction = item_area / strip_area;
+            let child = &children[idx];
+            let mut path = parent_path.to_vec();
+            path.push(idx);
+
+            let item_rect = if is_wide {
+                let h = strip_bounds.height() * fraction as f32;
+                let r = Rect::from_min_size(
+                    Pos2::new(strip_bounds.left(), strip_bounds.top() + offset),
+                    Vec2::new(strip_bounds.width(), h),
+                );
+                offset += h;
+                r
+            } else {
+                let w = strip_bounds.width() * fraction as f32;
+                let r = Rect::from_min_size(
+                    Pos2::new(strip_bounds.left() + offset, strip_bounds.top()),
+                    Vec2::new(w, strip_bounds.height()),
+                );
+                offset += w;
+                r
+            };
+
+            let color = if child.is_dir {
+                dir_color(child)
+            } else {
+                colors::color_for_extension(child.extension.as_deref())
+            };
+
+            result.push(TreemapRect {
+                rect: item_rect,
+                node_index: path.clone(),
+                name: child.name.clone(),
+                size: child.size,
+                is_dir: child.is_dir,
+                extension: child.extension.clone(),
+                color,
+                depth,
+            });
+
+            if child.is_dir && !child.children.is_empty() {
+                let inner = item_rect.shrink(DIR_PADDING);
+                if inner.width() > 4.0 && inner.height() > 4.0 {
+                    layout_recursive(&child.children, inner, &path, depth + 1, result);
+                }
+            }
+        }
+
+        // Loop with rest items instead of recursing
+        remaining = rest_items;
+        current_bounds = rest_bounds;
     }
 }
 

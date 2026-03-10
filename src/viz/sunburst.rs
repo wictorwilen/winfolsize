@@ -29,106 +29,94 @@ pub fn layout(node: &FileNode, center: Pos2, max_radius: f32, max_depth: usize) 
 
     let ring_width = max_radius / (max_depth as f32 + 1.0);
 
-    layout_ring(
-        &node.children,
-        node.size,
-        center,
-        ring_width,       // inner radius (skip center)
-        ring_width,
-        0.0,
-        TAU,
-        0,
-        max_depth,
-        &[],
-        &mut result,
-    );
+    // Iterative BFS-style layout using a work queue
+    struct RingWork<'a> {
+        children: &'a [FileNode],
+        parent_size: u64,
+        inner_radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        depth: usize,
+        parent_path: Vec<usize>,
+    }
+
+    let mut queue: Vec<RingWork> = vec![RingWork {
+        children: &node.children,
+        parent_size: node.size,
+        inner_radius: ring_width,
+        start_angle: 0.0,
+        end_angle: TAU,
+        depth: 0,
+        parent_path: Vec::new(),
+    }];
+
+    while let Some(work) = queue.pop() {
+        if work.depth >= max_depth || work.inner_radius + ring_width < 1.0 {
+            continue;
+        }
+
+        let angle_span = work.end_angle - work.start_angle;
+        if angle_span < 0.001 {
+            continue;
+        }
+
+        let outer_radius = work.inner_radius + ring_width;
+        let mut current_angle = work.start_angle;
+
+        for (i, child) in work.children.iter().enumerate() {
+            if child.size == 0 {
+                continue;
+            }
+
+            let fraction = child.size as f32 / work.parent_size as f32;
+            let child_angle_span = angle_span * fraction;
+
+            if child_angle_span < 0.002 {
+                current_angle += child_angle_span;
+                continue;
+            }
+
+            let mut path = work.parent_path.clone();
+            path.push(i);
+
+            let color = if child.is_dir {
+                dir_color_sunburst(child)
+            } else {
+                colors::color_for_extension(child.extension.as_deref())
+            };
+
+            result.push(SunburstArc {
+                center,
+                inner_radius: work.inner_radius,
+                outer_radius,
+                start_angle: current_angle,
+                end_angle: current_angle + child_angle_span,
+                node_index: path.clone(),
+                name: child.name.clone(),
+                size: child.size,
+                is_dir: child.is_dir,
+                extension: child.extension.clone(),
+                color,
+                depth: work.depth,
+            });
+
+            if child.is_dir && !child.children.is_empty() {
+                queue.push(RingWork {
+                    children: &child.children,
+                    parent_size: child.size,
+                    inner_radius: outer_radius,
+                    start_angle: current_angle,
+                    end_angle: current_angle + child_angle_span,
+                    depth: work.depth + 1,
+                    parent_path: path,
+                });
+            }
+
+            current_angle += child_angle_span;
+        }
+    }
 
     result
-}
-
-#[allow(clippy::too_many_arguments)]
-fn layout_ring(
-    children: &[FileNode],
-    parent_size: u64,
-    center: Pos2,
-    inner_radius: f32,
-    ring_width: f32,
-    start_angle: f32,
-    end_angle: f32,
-    depth: usize,
-    max_depth: usize,
-    parent_path: &[usize],
-    result: &mut Vec<SunburstArc>,
-) {
-    if depth >= max_depth || inner_radius + ring_width < 1.0 {
-        return;
-    }
-
-    let angle_span = end_angle - start_angle;
-    if angle_span < 0.001 {
-        return;
-    }
-
-    let outer_radius = inner_radius + ring_width;
-    let mut current_angle = start_angle;
-
-    for (i, child) in children.iter().enumerate() {
-        if child.size == 0 {
-            continue;
-        }
-
-        let fraction = child.size as f32 / parent_size as f32;
-        let child_angle_span = angle_span * fraction;
-
-        // Skip arcs that are too thin to see
-        if child_angle_span < 0.002 {
-            current_angle += child_angle_span;
-            continue;
-        }
-
-        let mut path = parent_path.to_vec();
-        path.push(i);
-
-        let color = if child.is_dir {
-            dir_color_sunburst(child)
-        } else {
-            colors::color_for_extension(child.extension.as_deref())
-        };
-
-        result.push(SunburstArc {
-            center,
-            inner_radius,
-            outer_radius,
-            start_angle: current_angle,
-            end_angle: current_angle + child_angle_span,
-            node_index: path.clone(),
-            name: child.name.clone(),
-            size: child.size,
-            is_dir: child.is_dir,
-            extension: child.extension.clone(),
-            color,
-            depth,
-        });
-
-        // Recurse into children
-        if child.is_dir && !child.children.is_empty() {
-            layout_ring(
-                &child.children,
-                child.size,
-                center,
-                outer_radius,
-                ring_width,
-                current_angle,
-                current_angle + child_angle_span,
-                depth + 1,
-                max_depth,
-                &path,
-                result,
-            );
-        }
-
-        current_angle += child_angle_span;
-    }
 }
 
 fn dir_color_sunburst(node: &FileNode) -> Color32 {
