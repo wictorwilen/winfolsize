@@ -1,0 +1,3 @@
+# Build targets for x64 and ARM Windows
+# To build for x64: cargo build --target x86_64-pc-windows-msvc
+# To build for ARM: cargo build --target aarch64-pc-windows-msvc
