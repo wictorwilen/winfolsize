@@ -38,37 +38,89 @@ impl FileNode {
     }
 
     pub fn file_count(&self) -> u64 {
-        if !self.is_dir {
-            return 1;
+        // Iterative count to avoid stack overflow on deep trees
+        let mut count = 0u64;
+        let mut stack = vec![self];
+        while let Some(node) = stack.pop() {
+            if node.is_dir {
+                for child in &node.children {
+                    stack.push(child);
+                }
+            } else {
+                count += 1;
+            }
         }
-        self.children.iter().map(|c| c.file_count()).sum()
+        count
     }
 
     pub fn dir_count(&self) -> u64 {
-        if !self.is_dir {
-            return 0;
+        let mut count = 0u64;
+        let mut stack = vec![self];
+        while let Some(node) = stack.pop() {
+            if node.is_dir {
+                count += 1;
+                for child in &node.children {
+                    stack.push(child);
+                }
+            }
         }
-        1 + self.children.iter().map(|c| c.dir_count()).sum::<u64>()
+        count
     }
 
-    /// Recalculate directory sizes from children (bottom-up).
+    /// Recalculate directory sizes from children (bottom-up, iterative).
     pub fn recalculate_sizes(&mut self) {
-        if self.is_dir {
-            for child in &mut self.children {
-                child.recalculate_sizes();
+        // Post-order traversal: collect all dir nodes in pre-order, then process in reverse.
+        let mut dir_indices: Vec<Vec<usize>> = Vec::new();
+        let mut stack: Vec<Vec<usize>> = vec![vec![]];
+        while let Some(path) = stack.pop() {
+            let node = Self::get_ref(self, &path);
+            if node.is_dir {
+                dir_indices.push(path.clone());
+                for i in 0..node.children.len() {
+                    let mut child_path = path.clone();
+                    child_path.push(i);
+                    stack.push(child_path);
+                }
             }
-            self.size = self.children.iter().map(|c| c.size).sum();
+        }
+        // Process in reverse (deepest dirs first)
+        for path in dir_indices.into_iter().rev() {
+            let node = Self::get_mut(self, &path);
+            if node.is_dir {
+                node.size = node.children.iter().map(|c| c.size).sum();
+            }
         }
     }
 
-    /// Sort children by size descending (recursive).
+    /// Sort children by size descending (iterative).
     pub fn sort_by_size(&mut self) {
-        if self.is_dir {
-            for child in &mut self.children {
-                child.sort_by_size();
+        let mut stack: Vec<*mut FileNode> = vec![self as *mut FileNode];
+        while let Some(ptr) = stack.pop() {
+            // SAFETY: we own the tree exclusively via &mut self, no aliasing
+            let node = unsafe { &mut *ptr };
+            if node.is_dir {
+                node.children.sort_by(|a, b| b.size.cmp(&a.size));
+                for child in &mut node.children {
+                    stack.push(child as *mut FileNode);
+                }
             }
-            self.children.sort_by(|a, b| b.size.cmp(&a.size));
         }
+    }
+
+    fn get_ref<'a>(root: &'a FileNode, path: &[usize]) -> &'a FileNode {
+        let mut node = root;
+        for &i in path {
+            node = &node.children[i];
+        }
+        node
+    }
+
+    fn get_mut<'a>(root: &'a mut FileNode, path: &[usize]) -> &'a mut FileNode {
+        let mut node = root;
+        for &i in path {
+            node = &mut node.children[i];
+        }
+        node
     }
 }
 

@@ -153,13 +153,16 @@ fn accumulate_categories(
     node: &FileNode,
     categories: &mut std::collections::HashMap<colors::FileCategory, u64>,
 ) {
-    if node.is_dir {
-        for child in &node.children {
-            accumulate_categories(child, categories);
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        if n.is_dir {
+            for child in &n.children {
+                stack.push(child);
+            }
+        } else {
+            let cat = colors::category_for_extension(n.extension.as_deref());
+            *categories.entry(cat).or_insert(0) += n.size;
         }
-    } else {
-        let cat = colors::category_for_extension(node.extension.as_deref());
-        *categories.entry(cat).or_insert(0) += node.size;
     }
 }
 
