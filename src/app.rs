@@ -178,10 +178,10 @@ impl eframe::App for WinFolSizeApp {
                         ui.label("Disk Space Visualizer");
                         ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
                         ui.add_space(12.0);
-                        ui.label(egui::RichText::new("Built with ❤\u{fe0f} by Wictor Wilén").strong());
+                        ui.label(egui::RichText::new("Built with ❤️ by Wictor Wilén").strong());
                         ui.hyperlink_to("www.wictorwilen.se", "https://www.wictorwilen.se");
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new("© 2025 Wictor Wilén · MIT License").weak());
+                        ui.label(egui::RichText::new("© 2026 Wictor Wilén · MIT License").weak());
                         ui.add_space(12.0);
                         if ui.button("Close").clicked() {
                             self.show_about = false;
