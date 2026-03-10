@@ -80,6 +80,29 @@ impl WinFolSizeApp {
         Some(node)
     }
 
+    /// Resolve a node_index (relative to current view) to its full filesystem path.
+    fn resolve_path(&self, node_index: &[usize]) -> Option<String> {
+        let root = self.scan_root.as_ref()?;
+        let mut node = root;
+        // Walk drill_path first
+        for &idx in &self.drill_path {
+            if idx < node.children.len() {
+                node = &node.children[idx];
+            } else {
+                return None;
+            }
+        }
+        // Then walk node_index
+        for &idx in node_index {
+            if idx < node.children.len() {
+                node = &node.children[idx];
+            } else {
+                return None;
+            }
+        }
+        Some(node.path.to_string_lossy().to_string())
+    }
+
     fn start_scanning(&mut self) {
         if let Some(ref path) = self.state.selected_path {
             // Estimate total bytes from disk used space for progress bar
@@ -303,6 +326,9 @@ impl eframe::App for WinFolSizeApp {
                             |ui| {
                                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 ui.label(egui::RichText::new(&tr.name).strong());
+                                if let Some(path) = self.resolve_path(&tr.node_index) {
+                                    ui.label(egui::RichText::new(path).weak().size(11.0));
+                                }
                                 ui.label(format_size(tr.size));
                                 if tr.is_dir {
                                     ui.label("Directory — click to drill in");
@@ -356,6 +382,9 @@ impl eframe::App for WinFolSizeApp {
                             |ui| {
                                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 ui.label(egui::RichText::new(&arc.name).strong());
+                                if let Some(path) = self.resolve_path(&arc.node_index) {
+                                    ui.label(egui::RichText::new(path).weak().size(11.0));
+                                }
                                 ui.label(format_size(arc.size));
                                 if arc.is_dir {
                                     ui.label("Directory — click to drill in");

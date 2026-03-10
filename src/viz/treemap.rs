@@ -107,7 +107,14 @@ fn layout_strip(
             });
 
             if child.is_dir && !child.children.is_empty() {
-                let inner = current_bounds.shrink(DIR_PADDING);
+                let mut inner = current_bounds.shrink(DIR_PADDING);
+                // Extra top padding at depth 0 for the folder name label
+                if depth == 0 && current_bounds.width() >= 60.0 && current_bounds.height() >= 30.0 {
+                    inner = Rect::from_min_max(
+                        Pos2::new(inner.left(), inner.top() + 16.0),
+                        inner.right_bottom(),
+                    );
+                }
                 if inner.width() > 4.0 && inner.height() > 4.0 {
                     layout_recursive(&child.children, inner, &path, depth + 1, result);
                 }
@@ -217,7 +224,13 @@ fn layout_strip(
             });
 
             if child.is_dir && !child.children.is_empty() {
-                let inner = item_rect.shrink(DIR_PADDING);
+                let mut inner = item_rect.shrink(DIR_PADDING);
+                if depth == 0 && item_rect.width() >= 60.0 && item_rect.height() >= 30.0 {
+                    inner = Rect::from_min_max(
+                        Pos2::new(inner.left(), inner.top() + 16.0),
+                        inner.right_bottom(),
+                    );
+                }
                 if inner.width() > 4.0 && inner.height() > 4.0 {
                     layout_recursive(&child.children, inner, &path, depth + 1, result);
                 }
@@ -311,7 +324,35 @@ pub fn draw(
         );
     }
 
-    // Pass 3: no labels on rectangles — details shown on hover
+    // Pass 3: draw folder name labels on top-level (depth 0) rects that are large enough
+    let label_min_width = 60.0;
+    let label_min_height = 30.0;
+    let label_padding = 4.0;
+    for tr in rects {
+        if tr.depth == 0 && tr.is_dir && tr.rect.width() >= label_min_width && tr.rect.height() >= label_min_height {
+            let text_pos = Pos2::new(tr.rect.left() + label_padding, tr.rect.top() + label_padding);
+            let font = egui::FontId::proportional(12.0);
+            let galley = painter.layout_no_wrap(tr.name.clone(), font.clone(), Color32::BLACK);
+            // Only draw if text fits within the rect width
+            if galley.size().x + label_padding * 2.0 <= tr.rect.width() {
+                // Draw text shadow for readability
+                painter.text(
+                    text_pos + egui::Vec2::new(1.0, 1.0),
+                    egui::Align2::LEFT_TOP,
+                    &tr.name,
+                    font.clone(),
+                    Color32::from_black_alpha(160),
+                );
+                painter.text(
+                    text_pos,
+                    egui::Align2::LEFT_TOP,
+                    &tr.name,
+                    font,
+                    Color32::WHITE,
+                );
+            }
+        }
+    }
 
     // Check hover — find the deepest (smallest) rect under cursor
     let response = ui.allocate_rect(available_rect, Sense::hover());
