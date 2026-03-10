@@ -311,42 +311,7 @@ pub fn draw(
         );
     }
 
-    // Pass 3: draw labels (only on leaf nodes or large-enough items)
-    for tr in rects {
-        if tr.rect.width() < 1.0 || tr.rect.height() < 1.0 {
-            continue;
-        }
-        // Only label items that are large enough and are either files or small dirs
-        let min_label_w = if tr.depth == 0 { 60.0 } else { 40.0 };
-        let min_label_h = if tr.depth == 0 { 20.0 } else { 14.0 };
-        if tr.rect.width() > min_label_w && tr.rect.height() > min_label_h {
-            let text = if tr.rect.width() > 100.0 && tr.rect.height() > 28.0 {
-                format!("{}\n{}", tr.name, format_size(tr.size))
-            } else {
-                tr.name.clone()
-            };
-
-            let text_color = if is_dark_color(tr.color) {
-                Color32::WHITE
-            } else {
-                Color32::BLACK
-            };
-
-            let font_size = match tr.depth {
-                0 => 12.0,
-                1 => 11.0,
-                _ => 10.0,
-            };
-
-            painter.text(
-                tr.rect.center(),
-                egui::Align2::CENTER_CENTER,
-                &text,
-                egui::FontId::proportional(font_size),
-                text_color,
-            );
-        }
-    }
+    // Pass 3: no labels on rectangles — details shown on hover
 
     // Check hover — find the deepest (smallest) rect under cursor
     let response = ui.allocate_rect(available_rect, Sense::hover());
@@ -376,11 +341,3 @@ pub fn draw(
     hovered
 }
 
-fn is_dark_color(c: Color32) -> bool {
-    let luminance = 0.299 * c.r() as f64 + 0.587 * c.g() as f64 + 0.114 * c.b() as f64;
-    luminance < 128.0
-}
-
-fn format_size(bytes: u64) -> String {
-    humansize::format_size(bytes, humansize::BINARY)
-}

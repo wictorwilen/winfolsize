@@ -267,6 +267,7 @@ impl eframe::App for WinFolSizeApp {
                             ui.layer_id(),
                             egui::Id::new("treemap_tooltip"),
                             |ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 ui.label(egui::RichText::new(&tr.name).strong());
                                 ui.label(format_size(tr.size));
                                 if tr.is_dir {
@@ -318,6 +319,7 @@ impl eframe::App for WinFolSizeApp {
                             ui.layer_id(),
                             egui::Id::new("sunburst_tooltip"),
                             |ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 ui.label(egui::RichText::new(&arc.name).strong());
                                 ui.label(format_size(arc.size));
                                 if arc.is_dir {
