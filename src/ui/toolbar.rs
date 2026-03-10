@@ -2,8 +2,13 @@ use eframe::egui;
 
 use crate::app::{AppState, ViewMode};
 
-pub fn draw(ui: &mut egui::Ui, state: &mut AppState) {
+pub fn draw(ui: &mut egui::Ui, state: &mut AppState, show_about: &mut bool) {
     ui.horizontal(|ui| {
+        // App logo
+        ui.label(egui::RichText::new("📊").size(20.0));
+        ui.label(egui::RichText::new("WinFolSize").strong().size(16.0));
+        ui.separator();
+
         if ui.button("📁 Select Folder").clicked() {
             if let Some(path) = rfd::FileDialog::new().pick_folder() {
                 state.selected_path = Some(path);
@@ -53,5 +58,11 @@ pub fn draw(ui: &mut egui::Ui, state: &mut AppState) {
         ui.label("View:");
         ui.selectable_value(&mut state.view_mode, ViewMode::Treemap, "🗺 Treemap");
         ui.selectable_value(&mut state.view_mode, ViewMode::Sunburst, "☀ Sunburst");
+
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.button("ℹ About").clicked() {
+                *show_about = true;
+            }
+        });
     });
 }

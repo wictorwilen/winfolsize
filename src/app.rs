@@ -38,6 +38,7 @@ pub struct WinFolSizeApp {
     drill_path: Vec<usize>,
     drill_depths: Vec<usize>, // how many indices each drill-down step pushed
     breadcrumb: Vec<String>,
+    show_about: bool,
 }
 
 impl WinFolSizeApp {
@@ -62,6 +63,7 @@ impl WinFolSizeApp {
             drill_path: Vec::new(),
             drill_depths: Vec::new(),
             breadcrumb: Vec::new(),
+            show_about: false,
         }
     }
 
@@ -156,9 +158,37 @@ impl eframe::App for WinFolSizeApp {
         // Top toolbar
         egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
             ui.add_space(4.0);
-            toolbar::draw(ui, &mut self.state);
+            toolbar::draw(ui, &mut self.state, &mut self.show_about);
             ui.add_space(4.0);
         });
+
+        // About dialog
+        if self.show_about {
+            egui::Window::new("About WinFolSize")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .fixed_size([340.0, 220.0])
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new("📊").size(48.0));
+                        ui.add_space(4.0);
+                        ui.heading(egui::RichText::new("WinFolSize").strong());
+                        ui.label("Disk Space Visualizer");
+                        ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
+                        ui.add_space(12.0);
+                        ui.label(egui::RichText::new("Built with ❤\u{fe0f} by Wictor Wilén").strong());
+                        ui.hyperlink_to("www.wictorwilen.se", "https://www.wictorwilen.se");
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new("© 2025 Wictor Wilén · MIT License").weak());
+                        ui.add_space(12.0);
+                        if ui.button("Close").clicked() {
+                            self.show_about = false;
+                        }
+                    });
+                });
+        }
 
         // Bottom status bar
         if self.scan_root.is_some() {

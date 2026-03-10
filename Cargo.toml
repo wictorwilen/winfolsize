@@ -3,6 +3,9 @@ name = "winfolsize"
 version = "0.1.0"
 edition = "2024"
 description = "A Windows disk space visualizer with treemap and sunburst views"
+license = "MIT"
+authors = ["Wictor Wilén <https://www.wictorwilen.se>"]
+repository = "https://github.com/nicolexy/winfolsize"
 
 [dependencies]
 eframe = "0.31"
