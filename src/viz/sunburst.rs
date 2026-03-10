@@ -175,17 +175,32 @@ pub fn draw(
     let bounds = Rect::from_center_size(center, egui::Vec2::splat(max_radius * 2.0));
     let painter = ui.painter_at(bounds);
 
-    // Draw arcs
-    for arc in arcs {
+    // Draw arcs (outer rings first for proper layering)
+    for arc in arcs.iter().rev() {
         draw_arc(&painter, arc);
     }
 
-    // Draw center label
+    // Draw center circle with filled background
+    let center_radius = if !arcs.is_empty() {
+        arcs.iter()
+            .map(|a| a.inner_radius)
+            .fold(f32::MAX, f32::min)
+    } else {
+        max_radius * 0.15
+    };
+
+    // Filled dark circle
+    painter.circle_filled(center, center_radius, Color32::from_rgb(30, 30, 35));
+    // Subtle border ring
+    painter.circle_stroke(center, center_radius, Stroke::new(1.5, Color32::from_gray(80)));
+
+    // Center label
+    let font_size = (center_radius * 0.25).clamp(10.0, 16.0);
     painter.text(
         center,
         egui::Align2::CENTER_CENTER,
         format!("{}\n{}", root_name, format_size(root_size)),
-        egui::FontId::proportional(12.0),
+        egui::FontId::proportional(font_size),
         Color32::WHITE,
     );
 

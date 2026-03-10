@@ -13,22 +13,41 @@ pub struct TreemapRect {
     pub is_dir: bool,
     pub extension: Option<String>,
     pub color: Color32,
+    pub depth: usize,
 }
 
 /// Compute squarified treemap layout for the children of `node` within `bounds`.
+/// Recursively lays out all levels — directories contain their children.
 pub fn layout(node: &FileNode, bounds: Rect) -> Vec<TreemapRect> {
     let mut result = Vec::new();
     if node.children.is_empty() || node.size == 0 {
         return result;
     }
-    squarify(&node.children, bounds, &[], &mut result);
+    layout_recursive(&node.children, bounds, &[], 0, &mut result);
     result
+}
+
+const MAX_LAYOUT_DEPTH: usize = 8;
+const DIR_PADDING: f32 = 2.0;
+
+fn layout_recursive(
+    children: &[FileNode],
+    bounds: Rect,
+    parent_path: &[usize],
+    depth: usize,
+    result: &mut Vec<TreemapRect>,
+) {
+    if depth > MAX_LAYOUT_DEPTH || bounds.width() < 3.0 || bounds.height() < 3.0 {
+        return;
+    }
+    squarify(children, bounds, parent_path, depth, result);
 }
 
 fn squarify(
     children: &[FileNode],
     bounds: Rect,
     parent_path: &[usize],
+    depth: usize,
     result: &mut Vec<TreemapRect>,
 ) {
     let total_size: u64 = children.iter().map(|c| c.size).sum();
@@ -38,7 +57,6 @@ fn squarify(
 
     let area = bounds.width() as f64 * bounds.height() as f64;
 
-    // Collect items with their proportional areas
     let items: Vec<(usize, f64)> = children
         .iter()
         .enumerate()
@@ -50,7 +68,7 @@ fn squarify(
         return;
     }
 
-    layout_strip(&items, children, bounds, parent_path, result);
+    layout_strip(&items, children, bounds, parent_path, depth, result);
 }
 
 fn layout_strip(
@@ -58,6 +76,7 @@ fn layout_strip(
     children: &[FileNode],
     bounds: Rect,
     parent_path: &[usize],
+    depth: usize,
     result: &mut Vec<TreemapRect>,
 ) {
     if items.is_empty() || bounds.width() < 1.0 || bounds.height() < 1.0 {
@@ -69,15 +88,31 @@ fn layout_strip(
         let child = &children[idx];
         let mut path = parent_path.to_vec();
         path.push(idx);
+
+        let color = if child.is_dir {
+            dir_color(child)
+        } else {
+            colors::color_for_extension(child.extension.as_deref())
+        };
+
         result.push(TreemapRect {
             rect: bounds,
-            node_index: path,
+            node_index: path.clone(),
             name: child.name.clone(),
             size: child.size,
             is_dir: child.is_dir,
             extension: child.extension.clone(),
-            color: colors::color_for_extension(child.extension.as_deref()),
+            color,
+            depth,
         });
+
+        // Recurse into directory children
+        if child.is_dir && !child.children.is_empty() {
+            let inner = bounds.shrink(DIR_PADDING);
+            if inner.width() > 4.0 && inner.height() > 4.0 {
+                layout_recursive(&child.children, inner, &path, depth + 1, result);
+            }
+        }
         return;
     }
 
@@ -116,11 +151,10 @@ fn layout_strip(
             best_worst_ratio = worst_ratio;
             best_split = split;
         } else {
-            break; // ratios getting worse, stop
+            break;
         }
     }
 
-    // Lay out the strip
     let strip_items = &items[..best_split];
     let rest_items = &items[best_split..];
     let strip_area: f64 = strip_items.iter().map(|(_, a)| a).sum();
@@ -166,25 +200,35 @@ fn layout_strip(
             r
         };
 
+        let color = if child.is_dir {
+            dir_color(child)
+        } else {
+            colors::color_for_extension(child.extension.as_deref())
+        };
+
         result.push(TreemapRect {
             rect: item_rect,
-            node_index: path,
+            node_index: path.clone(),
             name: child.name.clone(),
             size: child.size,
             is_dir: child.is_dir,
             extension: child.extension.clone(),
-            color: if child.is_dir {
-                // For directories, use a blended color based on largest child type
-                dir_color(child)
-            } else {
-                colors::color_for_extension(child.extension.as_deref())
-            },
+            color,
+            depth,
         });
+
+        // Recurse into directory children
+        if child.is_dir && !child.children.is_empty() {
+            let inner = item_rect.shrink(DIR_PADDING);
+            if inner.width() > 4.0 && inner.height() > 4.0 {
+                layout_recursive(&child.children, inner, &path, depth + 1, result);
+            }
+        }
     }
 
     // Recurse for remaining items
     if !rest_items.is_empty() && rest_bounds.width() >= 1.0 && rest_bounds.height() >= 1.0 {
-        layout_strip(rest_items, children, rest_bounds, parent_path, result);
+        layout_strip(rest_items, children, rest_bounds, parent_path, depth, result);
     }
 }
 
@@ -231,20 +275,51 @@ pub fn draw(
     let painter = ui.painter_at(available_rect);
     let mut hovered: Option<TreemapRect> = None;
 
+    // Draw in depth order: deeper items first (they are smaller and sit inside parents)
+    // The layout already produces them in a reasonable order (parent before children),
+    // so we draw all fills first, then all borders on top.
+
+    // Pass 1: fill all rectangles
     for tr in rects {
         if tr.rect.width() < 1.0 || tr.rect.height() < 1.0 {
             continue;
         }
-
-        // Draw filled rectangle
         painter.rect_filled(tr.rect, 0.0, tr.color);
+    }
 
-        // Draw border
-        painter.rect_stroke(tr.rect, 0.0, Stroke::new(0.5, Color32::from_gray(30)), egui::StrokeKind::Outside);
+    // Pass 2: draw borders — thicker for top-level (depth 0)
+    for tr in rects {
+        if tr.rect.width() < 1.0 || tr.rect.height() < 1.0 {
+            continue;
+        }
+        let border_width = match tr.depth {
+            0 => 2.0,
+            1 => 1.0,
+            _ => 0.5,
+        };
+        let border_color = match tr.depth {
+            0 => Color32::from_gray(20),
+            1 => Color32::from_gray(40),
+            _ => Color32::from_gray(50),
+        };
+        painter.rect_stroke(
+            tr.rect,
+            0.0,
+            Stroke::new(border_width, border_color),
+            egui::StrokeKind::Inside,
+        );
+    }
 
-        // Draw label if rectangle is large enough
-        if tr.rect.width() > 40.0 && tr.rect.height() > 16.0 {
-            let text = if tr.rect.width() > 100.0 {
+    // Pass 3: draw labels (only on leaf nodes or large-enough items)
+    for tr in rects {
+        if tr.rect.width() < 1.0 || tr.rect.height() < 1.0 {
+            continue;
+        }
+        // Only label items that are large enough and are either files or small dirs
+        let min_label_w = if tr.depth == 0 { 60.0 } else { 40.0 };
+        let min_label_h = if tr.depth == 0 { 20.0 } else { 14.0 };
+        if tr.rect.width() > min_label_w && tr.rect.height() > min_label_h {
+            let text = if tr.rect.width() > 100.0 && tr.rect.height() > 28.0 {
                 format!("{}\n{}", tr.name, format_size(tr.size))
             } else {
                 tr.name.clone()
@@ -256,20 +331,25 @@ pub fn draw(
                 Color32::BLACK
             };
 
+            let font_size = match tr.depth {
+                0 => 12.0,
+                1 => 11.0,
+                _ => 10.0,
+            };
+
             painter.text(
                 tr.rect.center(),
                 egui::Align2::CENTER_CENTER,
                 &text,
-                egui::FontId::proportional(11.0),
+                egui::FontId::proportional(font_size),
                 text_color,
             );
         }
     }
 
-    // Check hover
+    // Check hover — find the deepest (smallest) rect under cursor
     let response = ui.allocate_rect(available_rect, Sense::hover());
     if let Some(pointer_pos) = response.hover_pos() {
-        // Find smallest rect containing pointer (most specific)
         let mut best: Option<&TreemapRect> = None;
         let mut best_area = f64::MAX;
         for tr in rects {
@@ -282,12 +362,11 @@ pub fn draw(
             }
         }
         if let Some(tr) = best {
-            // Highlight hovered rect
             painter.rect_stroke(
                 tr.rect,
                 0.0,
                 Stroke::new(2.0, Color32::WHITE),
-                egui::StrokeKind::Outside,
+                egui::StrokeKind::Inside,
             );
             hovered = Some(tr.clone());
         }
