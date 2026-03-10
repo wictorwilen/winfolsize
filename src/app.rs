@@ -52,10 +52,32 @@ struct ContextMenuItem {
     node_index: Vec<usize>,
     is_dir: bool,
     size: u64,
+    pos: egui::Pos2,
 }
 
 impl WinFolSizeApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Load system emoji font as fallback for proper emoji rendering
+        if let Ok(emoji_font) = std::fs::read(r"C:\Windows\Fonts\seguiemj.ttf") {
+            let mut fonts = egui::FontDefinitions::default();
+            fonts.font_data.insert(
+                "segoe_emoji".to_owned(),
+                std::sync::Arc::new(egui::FontData::from_owned(emoji_font)),
+            );
+            // Add as last fallback for proportional and monospace
+            fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default()
+                .push("segoe_emoji".to_owned());
+            fonts
+                .families
+                .entry(egui::FontFamily::Monospace)
+                .or_default()
+                .push("segoe_emoji".to_owned());
+            cc.egui_ctx.set_fonts(fonts);
+        }
+
         Self {
             state: AppState {
                 selected_path: Some(std::path::PathBuf::from("C:\\")),
@@ -286,8 +308,7 @@ impl eframe::App for WinFolSizeApp {
                 .collapsible(false)
                 .resizable(false)
                 .fixed_size([220.0, 0.0])
-                .anchor(egui::Align2::LEFT_TOP, [0.0, 0.0])
-                .current_pos(ctx.input(|i| i.pointer.latest_pos().unwrap_or_default()))
+                .fixed_pos(item.pos)
                 .open(&mut open)
                 .show(ctx, |ui| {
                     ui.label(egui::RichText::new(&item.name).strong());
@@ -482,12 +503,14 @@ impl eframe::App for WinFolSizeApp {
                         // Right-click to open context menu
                         if ui.input(|i| i.pointer.secondary_clicked()) {
                             if let Some(path) = self.resolve_pathbuf(&tr.node_index) {
+                                let pos = ctx.input(|i| i.pointer.latest_pos().unwrap_or_default());
                                 self.context_menu = Some(ContextMenuItem {
                                     name: tr.name.clone(),
                                     path,
                                     node_index: tr.node_index.clone(),
                                     is_dir: tr.is_dir,
                                     size: tr.size,
+                                    pos,
                                 });
                             }
                         }
@@ -550,12 +573,14 @@ impl eframe::App for WinFolSizeApp {
                         // Right-click to open context menu
                         if ui.input(|i| i.pointer.secondary_clicked()) {
                             if let Some(path) = self.resolve_pathbuf(&arc.node_index) {
+                                let pos = ctx.input(|i| i.pointer.latest_pos().unwrap_or_default());
                                 self.context_menu = Some(ContextMenuItem {
                                     name: arc.name.clone(),
                                     path,
                                     node_index: arc.node_index.clone(),
                                     is_dir: arc.is_dir,
                                     size: arc.size,
+                                    pos,
                                 });
                             }
                         }
