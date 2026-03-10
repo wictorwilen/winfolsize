@@ -36,6 +36,7 @@ pub struct WinFolSizeApp {
     last_viz_size: egui::Vec2,
     // Navigation
     drill_path: Vec<usize>,
+    drill_depths: Vec<usize>, // how many indices each drill-down step pushed
     breadcrumb: Vec<String>,
 }
 
@@ -59,6 +60,7 @@ impl WinFolSizeApp {
             sunburst_arcs: Vec::new(),
             last_viz_size: egui::Vec2::ZERO,
             drill_path: Vec::new(),
+            drill_depths: Vec::new(),
             breadcrumb: Vec::new(),
         }
     }
@@ -91,6 +93,7 @@ impl WinFolSizeApp {
             self.scan_start_time = Some(Instant::now());
             self.scan_duration = None;
             self.drill_path.clear();
+            self.drill_depths.clear();
             self.breadcrumb.clear();
             self.treemap_rects.clear();
             self.sunburst_arcs.clear();
@@ -215,7 +218,8 @@ impl eframe::App for WinFolSizeApp {
             // Navigation: back button
             if !self.drill_path.is_empty() {
                 if ui.button("⬅ Back").clicked() {
-                    self.drill_path.pop();
+                    let depth = self.drill_depths.pop().unwrap_or(1);
+                    self.drill_path.truncate(self.drill_path.len().saturating_sub(depth));
                     self.breadcrumb.pop();
                     self.invalidate_layout();
                 }
@@ -278,8 +282,9 @@ impl eframe::App for WinFolSizeApp {
 
                         // Click to drill into directories
                         if ui.input(|i| i.pointer.primary_clicked()) && tr.is_dir {
-                            if let Some(&idx) = tr.node_index.last() {
-                                self.drill_path.push(idx);
+                            if !tr.node_index.is_empty() {
+                                self.drill_depths.push(tr.node_index.len());
+                                self.drill_path.extend_from_slice(&tr.node_index);
                                 self.breadcrumb.push(tr.name.clone());
                                 self.invalidate_layout();
                             }
@@ -329,8 +334,9 @@ impl eframe::App for WinFolSizeApp {
                         );
 
                         if ui.input(|i| i.pointer.primary_clicked()) && arc.is_dir {
-                            if let Some(&idx) = arc.node_index.last() {
-                                self.drill_path.push(idx);
+                            if !arc.node_index.is_empty() {
+                                self.drill_depths.push(arc.node_index.len());
+                                self.drill_path.extend_from_slice(&arc.node_index);
                                 self.breadcrumb.push(arc.name.clone());
                                 self.invalidate_layout();
                             }
