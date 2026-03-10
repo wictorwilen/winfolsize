@@ -24,11 +24,27 @@ pub fn draw(ui: &mut egui::Ui, state: &mut AppState) {
         if state.is_scanning {
             ui.spinner();
             if let Some(ref progress) = state.scan_progress {
-                ui.label(format!(
-                    "{} files scanned ({})",
-                    progress.files_scanned,
-                    humansize::format_size(progress.bytes_scanned, humansize::BINARY),
-                ));
+                // Show progress bar if we have an estimate
+                if let Some(total) = state.estimated_total_bytes {
+                    if total > 0 {
+                        let fraction = (progress.bytes_scanned as f32 / total as f32).min(1.0);
+                        let bar = egui::ProgressBar::new(fraction)
+                            .text(format!(
+                                "{} / {} ({:.0}%) — {} files",
+                                humansize::format_size(progress.bytes_scanned, humansize::BINARY),
+                                humansize::format_size(total, humansize::BINARY),
+                                fraction * 100.0,
+                                progress.files_scanned,
+                            ));
+                        ui.add_sized([220.0, 18.0], bar);
+                    }
+                } else {
+                    ui.label(format!(
+                        "{} files scanned ({})",
+                        progress.files_scanned,
+                        humansize::format_size(progress.bytes_scanned, humansize::BINARY),
+                    ));
+                }
             }
         }
 

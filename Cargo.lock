@@ -4061,6 +4061,7 @@ dependencies = [
  "eframe",
  "humansize",
  "rfd",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

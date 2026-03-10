@@ -21,6 +21,7 @@ pub struct AppState {
     pub start_scan: bool,
     pub scan_progress: Option<ScanProgress>,
     pub scan_error: Option<String>,
+    pub estimated_total_bytes: Option<u64>,
 }
 
 pub struct WinFolSizeApp {
@@ -48,6 +49,7 @@ impl WinFolSizeApp {
                 start_scan: false,
                 scan_progress: None,
                 scan_error: None,
+                estimated_total_bytes: None,
             },
             scan_receiver: None,
             scan_root: None,
@@ -76,6 +78,9 @@ impl WinFolSizeApp {
 
     fn start_scanning(&mut self) {
         if let Some(ref path) = self.state.selected_path {
+            // Estimate total bytes from disk used space for progress bar
+            self.state.estimated_total_bytes = disk_used_bytes(path);
+
             let (tx, rx) = mpsc::channel();
             walker::start_scan(path, tx);
             self.scan_receiver = Some(rx);
@@ -341,4 +346,34 @@ impl eframe::App for WinFolSizeApp {
 
 fn format_size(bytes: u64) -> String {
     humansize::format_size(bytes, humansize::BINARY)
+}
+
+/// Get used bytes on the disk containing `path` (total - free).
+fn disk_used_bytes(path: &std::path::Path) -> Option<u64> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let mut free_bytes_available: u64 = 0;
+        let mut total_bytes: u64 = 0;
+        let mut total_free_bytes: u64 = 0;
+        let ok = unsafe {
+            windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
+                wide.as_ptr(),
+                &mut free_bytes_available,
+                &mut total_bytes,
+                &mut total_free_bytes,
+            )
+        };
+        if ok != 0 {
+            Some(total_bytes.saturating_sub(total_free_bytes))
+        } else {
+            None
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        None
+    }
 }
