@@ -1,39 +1,84 @@
-# WinFolSize
+<p align="center">
+  <h1 align="center">🗂️ WinFolSize</h1>
+  <p align="center">
+    <strong>Where did all my disk space go?</strong><br>
+    A blazing-fast Windows disk space visualizer built in Rust.
+  </p>
+</p>
 
-A Windows disk space visualizer built in Rust with [egui](https://github.com/emilk/egui). Scan any folder or drive and explore where your disk space is going using interactive **treemap** and **sunburst** visualizations.
+<p align="center">
+  <a href="https://github.com/nicolexy/winfolsize/releases/latest"><img src="https://img.shields.io/github/v/release/nicolexy/winfolsize?style=flat-square&color=blue" alt="Latest Release"></a>
+  <a href="https://github.com/nicolexy/winfolsize/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/nicolexy/winfolsize/release.yml?style=flat-square&label=build" alt="Build Status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/nicolexy/winfolsize?style=flat-square" alt="License"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%20x64%20%7C%20ARM64-brightgreen?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/rust-1.85%2B-orange?style=flat-square&logo=rust" alt="Rust">
+</p>
 
-![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange)
-![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20%7C%20ARM64-blue)
+---
 
-## Features
+Scan any folder or drive and instantly see where your disk space is going with interactive **treemap** and **sunburst** visualizations. Powered by [egui](https://github.com/emilk/egui) for a native, GPU-accelerated experience.
 
-- **Treemap view** — classic WinDirStat-style rectangles sized by file/folder size
-- **Sunburst view** — concentric ring chart showing directory hierarchy
-- **Color by file type** — images, video, audio, documents, code, archives, etc.
-- **Background scanning** — UI stays responsive with live progress updates
-- **Drill-down navigation** — click folders to zoom in, back button to navigate out
-- **Hover tooltips** — see file name, size, and type on hover
-- **Native folder picker** — Windows file dialog for selecting scan targets
-- **Sidebar details** — file type legend, summary stats, hovered item details
+<p align="center">
+  <img src="assets/screenshot.png" alt="WinFolSize Screenshot" width="800">
+</p>
 
-## Building
+## ✨ Features
+
+- **🟩 Treemap view** — WinDirStat-style rectangles sized proportionally by file/folder size
+- **🌀 Sunburst view** — concentric ring chart showing your directory hierarchy at a glance
+- **🎨 Color by file type** — images, video, audio, documents, code, archives, and more
+- **⚡ Background scanning** — UI stays buttery smooth with real-time progress updates
+- **🔍 Drill-down navigation** — click folders to zoom in, back button to navigate out
+- **💬 Hover tooltips** — instantly see file name, size, and type
+- **📂 Native folder picker** — standard Windows file dialog
+- **📊 Sidebar details** — file type legend, summary stats, and hovered item info
+
+## 📦 Installation
+
+Download the latest release for your architecture from the [Releases page](https://github.com/nicolexy/winfolsize/releases/latest):
+
+| Platform | Download |
+|----------|----------|
+| Windows x64 (Intel/AMD) | `winfolsize-*-windows-x86_64.zip` |
+| Windows ARM64 | `winfolsize-*-windows-aarch64.zip` |
+
+Extract the zip and run `winfolsize.exe` — no installation required.
+
+## 🚀 Usage
+
+1. Launch `winfolsize.exe`
+2. Click **Select Folder** to choose a drive or directory
+3. Click **Scan** to analyze disk usage
+4. Toggle between **Treemap** and **Sunburst** views
+5. Click on folders to drill in, use **Back** to navigate up
+6. Hover over items to see details in the sidebar and tooltip
+
+## 🎨 File Type Categories
+
+| Color | Category | Extensions |
+|-------|----------|------------|
+| 🟢 Green | Images | .jpg, .png, .gif, .bmp, .svg, ... |
+| 🟣 Purple | Video | .mp4, .mkv, .avi, .mov, ... |
+| 🟡 Yellow | Audio | .mp3, .flac, .wav, .ogg, ... |
+| 🔵 Blue | Documents | .pdf, .docx, .xlsx, .txt, ... |
+| 🟠 Orange | Code | .rs, .py, .js, .ts, .c, ... |
+| 🔴 Red | Archives | .zip, .7z, .tar, .gz, .rar, ... |
+| 🩷 Pink | Executables | .exe, .dll, .msi, ... |
+| 🩵 Teal | Data | .json, .xml, .csv, .db, ... |
+| ⚪ Slate | System | .sys, .ini, .reg, .log, ... |
+| ⬜ Gray | Other | Everything else |
+
+## 🛠️ Building from Source
 
 ### Prerequisites
 
-- [Rust](https://rustup.rs/) 1.75 or later
+- [Rust](https://rustup.rs/) 1.85 or later
 - [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload
 
-### Build for current platform
+### Build
 
 ```bash
 cargo build --release
-```
-
-### Cross-compile for x64
-
-```bash
-rustup target add x86_64-pc-windows-msvc
-cargo build --release --target x86_64-pc-windows-msvc
 ```
 
 ### Cross-compile for ARM64
@@ -45,30 +90,22 @@ cargo build --release --target aarch64-pc-windows-msvc
 
 The binary will be in `target/release/winfolsize.exe` (or `target/<target>/release/`).
 
-## Usage
+## 🤝 Contributing
 
-1. Launch `winfolsize.exe`
-2. Click **Select Folder** to choose a drive or directory
-3. Click **Scan** to analyze disk usage
-4. Toggle between **Treemap** and **Sunburst** views
-5. Click on folders to drill in, use **Back** to navigate up
-6. Hover over items to see details in the sidebar and tooltip
+Contributions are welcome! Feel free to open issues and pull requests.
 
-## File Type Categories
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-| Color | Category |
-|-------|----------|
-| 🟢 Green | Images |
-| 🟣 Purple | Video |
-| 🟡 Yellow | Audio |
-| 🔵 Blue | Documents |
-| 🟠 Orange | Code |
-| 🔴 Red | Archives |
-| 🩷 Pink | Executables |
-| 🩵 Teal | Data |
-| ⚪ Slate | System |
-| ⬜ Gray | Other |
+## 📄 License
 
-## License
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-MIT
+---
+
+<p align="center">
+  Made with ❤️ and 🦀 by <a href="https://www.wictorwilen.se">Wictor Wilén</a>
+</p>

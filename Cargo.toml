@@ -6,6 +6,9 @@ description = "A Windows disk space visualizer with treemap and sunburst views"
 license = "MIT"
 authors = ["Wictor Wilén <https://www.wictorwilen.se>"]
 repository = "https://github.com/nicolexy/winfolsize"
+readme = "README.md"
+keywords = ["disk-space", "visualizer", "treemap", "sunburst", "windows"]
+categories = ["visualization", "filesystem"]
 
 [dependencies]
 eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow"] }
