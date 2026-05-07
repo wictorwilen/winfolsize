@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/nicolexy/winfolsize/releases/latest"><img src="https://img.shields.io/github/v/release/nicolexy/winfolsize?style=flat-square&color=blue" alt="Latest Release"></a>
-  <a href="https://github.com/nicolexy/winfolsize/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/nicolexy/winfolsize/release.yml?style=flat-square&label=build" alt="Build Status"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/nicolexy/winfolsize?style=flat-square" alt="License"></a>
+  <a href="https://github.com/wictorwilen/winfolsize/releases/latest"><img src="https://img.shields.io/github/v/release/wictorwilen/winfolsize?style=flat-square&color=blue" alt="Latest Release"></a>
+  <a href="https://github.com/wictorwilen/winfolsize/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/wictorwilen/winfolsize/release.yml?style=flat-square&label=build" alt="Build Status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/wictorwilen/winfolsize?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20x64%20%7C%20ARM64-brightgreen?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/rust-1.85%2B-orange?style=flat-square&logo=rust" alt="Rust">
 </p>
@@ -35,7 +35,7 @@ Scan any folder or drive and instantly see where your disk space is going with i
 
 ## 📦 Installation
 
-Download the latest release for your architecture from the [Releases page](https://github.com/nicolexy/winfolsize/releases/latest):
+Download the latest release for your architecture from the [Releases page](https://github.com/wictorwilen/winfolsize/releases/latest):
 
 | Platform | Download |
 |----------|----------|
