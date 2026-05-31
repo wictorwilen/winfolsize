@@ -120,6 +120,12 @@ Launch `winfolsize` with no arguments to open the GUI, then:
 
 > On Linux/WSL the GUI requires a working display server (X11, Wayland,
 > or WSLg). Headless environments can still use the CLI.
+>
+> **WSLg note:** if the GUI fails with `MESA: error: ZINK: failed to
+> choose pdev` or `egl: failed to create dri2 screen`, that's a known
+> Mesa Zink + WSLg interaction. `winfolsize` auto-falls back to llvmpipe
+> software rendering when it detects WSL. If you still hit issues, force
+> it explicitly: `LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe winfolsize`.
 
 ### CLI
 

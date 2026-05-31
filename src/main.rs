@@ -38,6 +38,25 @@ fn make_icon() -> eframe::egui::IconData {
 }
 
 fn run_gui() -> ExitCode {
+    // WSLg / Mesa workaround: the new Mesa "zink" GL-on-Vulkan driver
+    // commonly fails with "failed to choose pdev" / "egl: failed to create
+    // dri2 screen" inside WSL. Falling back to the llvmpipe software
+    // rasterizer always works. We only override when the user hasn't set
+    // anything themselves.
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("WSL_DISTRO_NAME").is_some()
+            || std::env::var_os("WSL_INTEROP").is_some()
+        {
+            if std::env::var_os("LIBGL_ALWAYS_SOFTWARE").is_none() {
+                unsafe { std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1") };
+            }
+            if std::env::var_os("MESA_LOADER_DRIVER_OVERRIDE").is_none() {
+                unsafe { std::env::set_var("MESA_LOADER_DRIVER_OVERRIDE", "llvmpipe") };
+            }
+        }
+    }
+
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 800.0])

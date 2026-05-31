@@ -10,7 +10,15 @@ pub fn draw(ui: &mut egui::Ui, state: &mut AppState, show_about: &mut bool) {
         ui.separator();
 
         if ui.button("📁 Select Folder").clicked() {
-            if let Some(path) = rfd::FileDialog::new().pick_folder() {
+            let mut dialog = rfd::FileDialog::new();
+            if let Some(ref current) = state.selected_path {
+                if current.is_dir() {
+                    dialog = dialog.set_directory(current);
+                } else if let Some(parent) = current.parent() {
+                    dialog = dialog.set_directory(parent);
+                }
+            }
+            if let Some(path) = dialog.pick_folder() {
                 state.selected_path = Some(path);
             }
         }

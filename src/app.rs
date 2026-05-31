@@ -9,6 +9,17 @@ use crate::scanner::walker;
 use crate::ui::{sidebar, status_bar, toolbar};
 use crate::viz::{sunburst, treemap};
 
+/// Default starting directory shown in the toolbar and file picker.
+fn default_start_path() -> PathBuf {
+    if cfg!(target_os = "windows") {
+        PathBuf::from("C:\\")
+    } else {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("/"))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ViewMode {
     Treemap,
@@ -57,30 +68,46 @@ struct ContextMenuItem {
 
 impl WinFolSizeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Load system emoji font as fallback for proper emoji rendering
-        if let Ok(emoji_font) = std::fs::read(r"C:\Windows\Fonts\seguiemj.ttf") {
-            let mut fonts = egui::FontDefinitions::default();
-            fonts.font_data.insert(
-                "segoe_emoji".to_owned(),
-                std::sync::Arc::new(egui::FontData::from_owned(emoji_font)),
-            );
-            // Add as last fallback for proportional and monospace
-            fonts
-                .families
-                .entry(egui::FontFamily::Proportional)
-                .or_default()
-                .push("segoe_emoji".to_owned());
-            fonts
-                .families
-                .entry(egui::FontFamily::Monospace)
-                .or_default()
-                .push("segoe_emoji".to_owned());
-            cc.egui_ctx.set_fonts(fonts);
+        // Load a system emoji font as fallback for proper emoji rendering.
+        // Per-OS path; ignore failure (the bundled fonts still render text).
+        let emoji_font_path: Option<&str> = if cfg!(target_os = "windows") {
+            Some(r"C:\Windows\Fonts\seguiemj.ttf")
+        } else if cfg!(target_os = "macos") {
+            Some("/System/Library/Fonts/Apple Color Emoji.ttc")
+        } else {
+            // Linux: Noto Color Emoji is the typical fallback. Multiple paths
+            // depending on distro; try them in order.
+            ["/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+             "/usr/share/fonts/noto/NotoColorEmoji.ttf",
+             "/usr/share/fonts/google-noto-color-emoji-fonts/NotoColorEmoji.ttf"]
+                .iter()
+                .find(|p| std::path::Path::new(p).exists())
+                .copied()
+        };
+        if let Some(path) = emoji_font_path {
+            if let Ok(emoji_font) = std::fs::read(path) {
+                let mut fonts = egui::FontDefinitions::default();
+                fonts.font_data.insert(
+                    "system_emoji".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(emoji_font)),
+                );
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .push("system_emoji".to_owned());
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Monospace)
+                    .or_default()
+                    .push("system_emoji".to_owned());
+                cc.egui_ctx.set_fonts(fonts);
+            }
         }
 
         Self {
             state: AppState {
-                selected_path: Some(std::path::PathBuf::from("C:\\")),
+                selected_path: Some(default_start_path()),
                 view_mode: ViewMode::Treemap,
                 is_scanning: false,
                 start_scan: false,
