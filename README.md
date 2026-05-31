@@ -166,55 +166,6 @@ winfolsize scan ./build -f 50 -0 --paths-only | xargs -0 -I{} echo "would zap {}
 winfolsize scan . -n 5 --json | jq '.files[].path'
 ```
 
-## 📦 Publishing to winget
-
-To make `winget install Wictorwilen.WinFolSize` work, submit a manifest
-to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
-Easiest path uses [`wingetcreate`](https://github.com/microsoft/winget-create):
-
-1. **Publish a GitHub Release** so the Windows `.zip` assets and
-   `SHA256SUMS.txt` are available at a stable URL.
-2. **Install wingetcreate** (one-time):
-   ```powershell
-   winget install Microsoft.WingetCreate
-   ```
-3. **Generate the manifest** for a new package:
-   ```powershell
-   wingetcreate new https://github.com/wictorwilen/winfolsize/releases/download/vX.Y.Z/winfolsize-X.Y.Z-windows-x86_64.zip
-   ```
-   `wingetcreate` will prompt for metadata and download the asset to
-   compute SHA256. Suggested values:
-   - **PackageIdentifier**: `Wictorwilen.WinFolSize`
-   - **PackageName**: `WinFolSize`
-   - **Publisher**: `Wictor Wilén`
-   - **License**: `MIT`
-   - **ShortDescription**: `Disk space visualizer with treemap and sunburst views`
-   - **Tags**: `disk-space`, `visualizer`, `treemap`, `rust`
-   - **InstallerType**: `zip` with a `NestedInstallerFiles` entry
-     pointing at `winfolsize.exe` (PortableCommandAlias: `winfolsize`).
-   - Add a second `Installers:` entry for the ARM64 zip.
-4. **Submit the PR** — `wingetcreate submit --token <gh-pat>` opens a
-   pull request against `microsoft/winget-pkgs`.
-5. **For subsequent releases** use:
-   ```powershell
-   wingetcreate update Wictorwilen.WinFolSize --version X.Y.Z \
-     --urls https://github.com/wictorwilen/winfolsize/releases/download/vX.Y.Z/winfolsize-X.Y.Z-windows-x86_64.zip `
-            https://github.com/wictorwilen/winfolsize/releases/download/vX.Y.Z/winfolsize-X.Y.Z-windows-aarch64.zip \
-     --submit --token <gh-pat>
-   ```
-   This can be wired into the release workflow with the
-   [`vedantmgoyal9/winget-releaser`](https://github.com/vedantmgoyal9/winget-releaser)
-   action so every GitHub Release automatically opens a winget PR.
-
-Winget requirements to remember:
-- The publisher/package identifier must be globally unique and stable
-  (`Publisher.Package` casing matters).
-- All installer URLs must be HTTPS and reachable without auth.
-- SHA256 must match the released archives exactly — do not re-cut a
-  release with the same tag after submission.
-- A package icon (`.ico`/`.png`) is optional but recommended for
-  installer metadata.
-
 ## 🎨 File Type Categories
 
 | Color | Category | Extensions |
