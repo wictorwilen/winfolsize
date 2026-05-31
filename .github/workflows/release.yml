@@ -113,9 +113,9 @@ jobs:
           else
             BIN="target/${{ matrix.target_triple }}/release/winfolsize"
           fi
-          # Skip runtime check for cross-compiled aarch64 linux (can't exec on x86_64 host)
-          if [[ "${{ matrix.target_name }}" == "linux-aarch64" ]]; then
-            echo "Skipping --version exec for cross-compiled $BIN"
+          # Skip runtime exec check on architectures we can't run on the host
+          if [[ "${{ matrix.target_name }}" == "linux-aarch64" || "${{ matrix.target_name }}" == "windows-aarch64" ]]; then
+            echo "Skipping --version exec for cross-target $BIN"
             exit 0
           fi
           OUT="$("$BIN" --version)"
