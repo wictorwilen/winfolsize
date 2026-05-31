@@ -35,7 +35,7 @@ Scan any folder or drive and instantly see where your disk space is going with i
 
 ## 📦 Installation
 
-### Quick install
+### Quick install (one-liner)
 
 **Windows (PowerShell):**
 
@@ -43,30 +43,62 @@ Scan any folder or drive and instantly see where your disk space is going with i
 irm https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.ps1 | iex
 ```
 
+Installs `winfolsize.exe` (GUI) and `winfolsizec.exe` (CLI) into
+`%LOCALAPPDATA%\Programs\winfolsize` and adds it to your user `PATH`.
+
 **Linux / macOS / WSL (bash):**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.sh | bash
 ```
 
-The installers download the latest release for your OS/arch, drop the
-binary in `%LOCALAPPDATA%\Programs\winfolsize` (Windows) or `~/.local/bin`
-(Linux/macOS), and add it to `PATH` when needed.
+Installs `winfolsize` to `~/.local/bin`. Make sure that directory is on
+your `PATH` (the script warns you if it isn't).
+
+#### Pin a specific version
+
+```powershell
+# PowerShell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.ps1))) -Version v0.1.0
+```
+
+```bash
+# bash
+curl -fsSL https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.sh | WINFOLSIZE_VERSION=v0.1.0 bash
+```
+
+#### Custom install directory
+
+```powershell
+# PowerShell — install into C:\Tools\winfolsize instead
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.ps1))) -InstallDir 'C:\Tools\winfolsize'
+```
+
+```bash
+# bash — install into /usr/local instead of ~/.local
+curl -fsSL https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.sh | WINFOLSIZE_PREFIX=/usr/local sudo -E bash
+```
 
 ### Manual download
 
 Grab a prebuilt archive from the [Releases page](https://github.com/wictorwilen/winfolsize/releases/latest):
 
-| Platform | Asset |
-|----------|-------|
-| Windows x64 | `winfolsize-*-windows-x86_64.zip` |
-| Windows ARM64 | `winfolsize-*-windows-aarch64.zip` |
-| Linux x64 | `winfolsize-*-linux-x86_64.tar.gz` |
-| Linux ARM64 | `winfolsize-*-linux-aarch64.tar.gz` |
-| macOS Intel | `winfolsize-*-macos-x86_64.tar.gz` |
-| macOS Apple Silicon | `winfolsize-*-macos-aarch64.tar.gz` |
+| Platform | Asset | Contains |
+|----------|-------|----------|
+| Windows x64 | `winfolsize-*-windows-x86_64.zip` | `winfolsize.exe` + `winfolsizec.exe` |
+| Windows ARM64 | `winfolsize-*-windows-aarch64.zip` | `winfolsize.exe` + `winfolsizec.exe` |
+| Linux x64 | `winfolsize-*-linux-x86_64.tar.gz` | `winfolsize` |
+| Linux ARM64 | `winfolsize-*-linux-aarch64.tar.gz` | `winfolsize` |
+| macOS Intel | `winfolsize-*-macos-x86_64.tar.gz` | `winfolsize` |
+| macOS Apple Silicon | `winfolsize-*-macos-aarch64.tar.gz` | `winfolsize` |
 
-Extract and run `winfolsize` (or `winfolsize.exe`).
+`SHA256SUMS.txt` next to the assets contains checksums for every file.
+
+On Windows the zip ships **two** binaries:
+- `winfolsize.exe` — GUI launcher (no console window on double-click).
+- `winfolsizec.exe` — CLI for use in `cmd`/PowerShell/terminals.
+
+Extract and run whichever you need.
 
 ### From source
 
