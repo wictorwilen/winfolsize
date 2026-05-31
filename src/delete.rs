@@ -1,23 +1,21 @@
 use std::path::Path;
 
-#[cfg(windows)]
-use std::ffi::OsStr;
-#[cfg(windows)]
-use std::os::windows::ffi::OsStrExt;
-
-/// Move a file or folder to the Windows Recycle Bin.
-/// Returns Ok(()) on success, Err with a description on failure.
+/// Move a file or folder to the OS trash / recycle bin.
+/// On Windows uses the Shell API directly (allows undo via Recycle Bin).
+/// On Linux/macOS uses the `trash` crate (XDG trash spec / Finder trash).
 pub fn recycle(path: &Path) -> Result<(), String> {
     #[cfg(windows)]
     {
+        use std::ffi::OsStr;
+        use std::os::windows::ffi::OsStrExt;
         use windows_sys::Win32::UI::Shell::{
-            SHFileOperationW, SHFILEOPSTRUCTW, FO_DELETE, FOF_ALLOWUNDO, FOF_NOCONFIRMATION,
-            FOF_SILENT,
+            FO_DELETE, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_SILENT, SHFILEOPSTRUCTW,
+            SHFileOperationW,
         };
 
         let mut from: Vec<u16> = OsStr::new(path).encode_wide().collect();
-        from.push(0); // null terminator
-        from.push(0); // double-null terminator
+        from.push(0);
+        from.push(0);
 
         let file_op = SHFILEOPSTRUCTW {
             hwnd: std::ptr::null_mut(),
@@ -39,11 +37,11 @@ pub fn recycle(path: &Path) -> Result<(), String> {
     }
     #[cfg(not(windows))]
     {
-        Err("Recycle bin is only supported on Windows".to_string())
+        trash::delete(path).map_err(|e| format!("Failed to move to trash: {}", e))
     }
 }
 
-/// Permanently delete a file or folder (bypasses the Recycle Bin).
+/// Permanently delete a file or folder (bypasses trash / Recycle Bin).
 pub fn permanent_delete(path: &Path) -> Result<(), String> {
     if path.is_dir() {
         std::fs::remove_dir_all(path).map_err(|e| format!("Failed to delete directory: {}", e))

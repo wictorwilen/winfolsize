@@ -10,7 +10,7 @@
   <a href="https://github.com/wictorwilen/winfolsize/releases/latest"><img src="https://img.shields.io/github/v/release/wictorwilen/winfolsize?style=flat-square&color=blue" alt="Latest Release"></a>
   <a href="https://github.com/wictorwilen/winfolsize/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/wictorwilen/winfolsize/release.yml?style=flat-square&label=build" alt="Build Status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/wictorwilen/winfolsize?style=flat-square" alt="License"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20x64%20%7C%20ARM64-brightgreen?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-brightgreen?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/rust-1.85%2B-orange?style=flat-square&logo=rust" alt="Rust">
 </p>
 
@@ -35,23 +35,153 @@ Scan any folder or drive and instantly see where your disk space is going with i
 
 ## 📦 Installation
 
-Download the latest release for your architecture from the [Releases page](https://github.com/wictorwilen/winfolsize/releases/latest):
+### Quick install
 
-| Platform | Download |
-|----------|----------|
-| Windows x64 (Intel/AMD) | `winfolsize-*-windows-x86_64.zip` |
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.ps1 | iex
+```
+
+**Linux / macOS / WSL (bash):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wictorwilen/winfolsize/main/install.sh | bash
+```
+
+The installers download the latest release for your OS/arch, drop the
+binary in `%LOCALAPPDATA%\Programs\winfolsize` (Windows) or `~/.local/bin`
+(Linux/macOS), and add it to `PATH` when needed.
+
+### Manual download
+
+Grab a prebuilt archive from the [Releases page](https://github.com/wictorwilen/winfolsize/releases/latest):
+
+| Platform | Asset |
+|----------|-------|
+| Windows x64 | `winfolsize-*-windows-x86_64.zip` |
 | Windows ARM64 | `winfolsize-*-windows-aarch64.zip` |
+| Linux x64 | `winfolsize-*-linux-x86_64.tar.gz` |
+| Linux ARM64 | `winfolsize-*-linux-aarch64.tar.gz` |
+| macOS Intel | `winfolsize-*-macos-x86_64.tar.gz` |
+| macOS Apple Silicon | `winfolsize-*-macos-aarch64.tar.gz` |
 
-Extract the zip and run `winfolsize.exe` — no installation required.
+Extract and run `winfolsize` (or `winfolsize.exe`).
+
+### From source
+
+```bash
+cargo install --git https://github.com/wictorwilen/winfolsize --locked
+```
 
 ## 🚀 Usage
 
-1. Launch `winfolsize.exe`
-2. Click **Select Folder** to choose a drive or directory
-3. Click **Scan** to analyze disk usage
-4. Toggle between **Treemap** and **Sunburst** views
-5. Click on folders to drill in, use **Back** to navigate up
-6. Hover over items to see details in the sidebar and tooltip
+### GUI
+
+Launch `winfolsize` with no arguments to open the GUI, then:
+
+1. Click **Select Folder** to choose a drive or directory
+2. Click **Scan** to analyze disk usage
+3. Toggle between **Treemap** and **Sunburst** views
+4. Click on folders to drill in, use **Back** to navigate up
+5. Hover over items to see details in the sidebar and tooltip
+
+> On Linux/WSL the GUI requires a working display server (X11, Wayland,
+> or WSLg). Headless environments can still use the CLI.
+
+### CLI
+
+> **Windows users:** use `winfolsizec.exe` for the CLI. The default
+> `winfolsize.exe` is a GUI-subsystem binary, so when invoked from
+> `cmd`/PowerShell the shell doesn't wait for it and CLI output appears
+> *after* the prompt. `winfolsizec.exe` is the same code linked as a
+> console app and behaves normally. Both ship in the same zip.
+> On Linux/macOS just use `winfolsize`.
+
+Any arguments switch into CLI mode.
+
+```text
+winfolsizec scan <PATH> [OPTIONS]    List largest files and/or folders   (Windows)
+winfolsize  scan <PATH> [OPTIONS]    Same, on Linux/macOS
+winfolsizec delete   [OPTIONS]       Read paths from stdin and delete them
+winfolsizec --help                   Show all options
+```
+
+Scan options: `-f/--files N`, `-d/--folders N`, `-n/--top N`,
+`--bytes`, `--paths-only`, `-0/--null`, `--json`.
+
+Delete options: `--recycle` (default), `--permanent`, `-y/--yes`,
+`-0/--null`, `--dry-run`. `--recycle` uses the Windows Recycle Bin or
+the XDG/macOS trash via the [`trash`](https://crates.io/crates/trash)
+crate, so deletions are reversible.
+
+**Examples:**
+
+```bash
+# 20 largest files under D:\
+winfolsize scan D:\ --files 20
+
+# 10 largest folders under /var, machine-readable bytes
+winfolsize scan /var -d 10 --bytes
+
+# Pipe straight into delete (sizes are stripped automatically)
+winfolsize scan ~/Downloads -f 5 | winfolsize delete --recycle
+
+# NUL-safe pipeline with xargs interop
+winfolsize scan ./build -f 50 -0 --paths-only | xargs -0 -I{} echo "would zap {}"
+
+# JSON for scripting
+winfolsize scan . -n 5 --json | jq '.files[].path'
+```
+
+## 📦 Publishing to winget
+
+To make `winget install Wictorwilen.WinFolSize` work, submit a manifest
+to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
+Easiest path uses [`wingetcreate`](https://github.com/microsoft/winget-create):
+
+1. **Publish a GitHub Release** so the Windows `.zip` assets and
+   `SHA256SUMS.txt` are available at a stable URL.
+2. **Install wingetcreate** (one-time):
+   ```powershell
+   winget install Microsoft.WingetCreate
+   ```
+3. **Generate the manifest** for a new package:
+   ```powershell
+   wingetcreate new https://github.com/wictorwilen/winfolsize/releases/download/vX.Y.Z/winfolsize-X.Y.Z-windows-x86_64.zip
+   ```
+   `wingetcreate` will prompt for metadata and download the asset to
+   compute SHA256. Suggested values:
+   - **PackageIdentifier**: `Wictorwilen.WinFolSize`
+   - **PackageName**: `WinFolSize`
+   - **Publisher**: `Wictor Wilén`
+   - **License**: `MIT`
+   - **ShortDescription**: `Disk space visualizer with treemap and sunburst views`
+   - **Tags**: `disk-space`, `visualizer`, `treemap`, `rust`
+   - **InstallerType**: `zip` with a `NestedInstallerFiles` entry
+     pointing at `winfolsize.exe` (PortableCommandAlias: `winfolsize`).
+   - Add a second `Installers:` entry for the ARM64 zip.
+4. **Submit the PR** — `wingetcreate submit --token <gh-pat>` opens a
+   pull request against `microsoft/winget-pkgs`.
+5. **For subsequent releases** use:
+   ```powershell
+   wingetcreate update Wictorwilen.WinFolSize --version X.Y.Z \
+     --urls https://github.com/wictorwilen/winfolsize/releases/download/vX.Y.Z/winfolsize-X.Y.Z-windows-x86_64.zip `
+            https://github.com/wictorwilen/winfolsize/releases/download/vX.Y.Z/winfolsize-X.Y.Z-windows-aarch64.zip \
+     --submit --token <gh-pat>
+   ```
+   This can be wired into the release workflow with the
+   [`vedantmgoyal9/winget-releaser`](https://github.com/vedantmgoyal9/winget-releaser)
+   action so every GitHub Release automatically opens a winget PR.
+
+Winget requirements to remember:
+- The publisher/package identifier must be globally unique and stable
+  (`Publisher.Package` casing matters).
+- All installer URLs must be HTTPS and reachable without auth.
+- SHA256 must match the released archives exactly — do not re-cut a
+  release with the same tag after submission.
+- A package icon (`.ico`/`.png`) is optional but recommended for
+  installer metadata.
 
 ## 🎨 File Type Categories
 
